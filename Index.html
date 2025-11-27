@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cadence Workflow Calculator</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7fafc;
+        }
+        .card {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .input-field {
+            @apply w-full p-3 border border-gray-300 rounded-lg focus:border-indigo-500 focus:ring-indigo-500 transition duration-150;
+        }
+        .disabled-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #b91c1c; /* red-700 */
+            border-radius: 0.5rem;
+            text-align: center;
+            padding: 0.5rem;
+            cursor: not-allowed;
+            z-index: 10;
+        }
+        .input-container-relative {
+            position: relative;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">Cadence & Workflow Calculator</h1>
+        <p class="text-lg text-gray-600 mb-8">Enter your event details to automatically calculate all required scheduling and general tab end dates.</p>
+
+        <!-- Input Card -->
+        <div class="card bg-white p-6 sm:p-8 rounded-xl mb-10">
+            <h2 class="text-2xl font-semibold mb-6 text-indigo-700">1. Event Details Input</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Event Start Date -->
+                <div>
+                    <label for="startDate" class="block text-sm font-medium text-gray-700 mb-1">Event Start Date</label>
+                    <input type="date" id="startDate" class="input-field" onchange="calculateCadence()">
+                </div>
+                <!-- Event Start Time -->
+                <div>
+                    <label for="startTime" class="block text-sm font-medium text-gray-700 mb-1">Event Start Time</label>
+                    <input type="time" id="startTime" class="input-field" step="1800" onchange="calculateCadence()">
+                </div>
+                <!-- Event End Date -->
+                <div>
+                    <label for="endDate" class="block text-sm font-medium text-gray-700 mb-1">Event End Date</label>
+                    <input type="date" id="endDate" class="input-field" onchange="calculateCadence()">
+                </div>
+                <!-- Event End Time -->
+                <div>
+                    <label for="endTime" class="block text-sm font-medium text-gray-700 mb-1">Event End Time</label>
+                    <input type="time" id="endTime" class="input-field" step="1800" onchange="calculateCadence()">
+                </div>
+
+                <!-- NEW: Custom Follow-up Override (Up to T+6 Business Days) -->
+                <div class="md:col-span-2 mt-4 p-4 border border-red-200 rounded-xl bg-red-50 input-container-relative" id="ty-extension-container">
+                    <h3 class="text-md font-semibold text-red-800 mb-2">Follow-up (TY/No Show) Custom Extension (Optional)</h3>
+                    <label for="customTyDaysOverride" class="block text-sm font-medium text-gray-700 mb-1">Select Custom Days After Event End (Max 6)</label>
+                    <select id="customTyDaysOverride" class="input-field" onchange="calculateCadence()">
+                        <option value="">-- Use Default Calculation --</option>
+                        <option value="1">T+1 Business Day</option>
+                        <option value="2">T+2 Business Days</option>
+                        <option value="3">T+3 Business Days</option>
+                        <option value="4">T+4 Business Days</option>
+                        <option value="5">T+5 Business Days</option>
+                        <option value="6">T+6 Business Days</option>
+                    </select>
+                    <p class="text-xs text-gray-600 mt-1 font-semibold">If selected, calculation will always use Business Days, overriding Event Type.</p>
+                </div>
+                
+                <!-- On-Demand Start and End Inputs (CLEANER LAYOUT) -->
+                <div class="md:col-span-2 mt-4 p-4 border border-blue-200 rounded-xl bg-blue-50">
+                    <h3 class="text-md font-semibold text-blue-800 mb-4">On-Demand Workflow Dates (Optional)</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- START BLOCK -->
+                        <div class="bg-white p-3 rounded-lg shadow-inner">
+                            <h4 class="font-medium text-sm text-gray-700 mb-2">On-Demand Content Start</h4>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label for="onDemandStartDate" class="block text-xs font-medium text-gray-500 mb-1">Date</label>
+                                    <input type="date" id="onDemandStartDate" class="input-field" onchange="calculateCadence()">
+                                </div>
+                                <div>
+                                    <label for="onDemandStartTime" class="block text-xs font-medium text-gray-500 mb-1">Time</label>
+                                    <input type="time" id="onDemandStartTime" class="input-field" step="1800" onchange="calculateCadence()">
+                                </div>
+                            </div>
+                        </div>
+                        <!-- END BLOCK -->
+                        <div class="bg-white p-3 rounded-lg shadow-inner">
+                            <h4 class="font-medium text-sm text-gray-700 mb-2">On-Demand Content End</h4>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label for="onDemandEndDate" class="block text-xs font-medium text-gray-500 mb-1">Date</label>
+                                    <input type="date" id="onDemandEndDate" class="input-field" onchange="calculateCadence()">
+                                </div>
+                                <div>
+                                    <label for="onDemandEndTime" class="block text-xs font-medium text-gray-500 mb-1">Time</label>
+                                    <input type="time" id="onDemandEndTime" class="input-field" step="1800" onchange="calculateCadence()">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Event Type, Region, and Checkboxes -->
+            <div class="mt-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Column 1: Event Type and Checkboxes -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-3">Event Type (Determines Day Basis)</label>
+                        <div class="flex flex-col sm:flex-row gap-4">
+                            <label class="inline-flex items-center p-3 bg-indigo-50 rounded-lg cursor-pointer">
+                                <input type="radio" name="eventType" value="Digital" checked onchange="calculateCadence(); updateTyExtensionLock();" class="text-indigo-600 focus:ring-indigo-500">
+                                <span class="ml-2 text-sm font-medium text-indigo-800">Digital Event (Calendar Days)</span>
+                            </label>
+                            <label class="inline-flex items-center p-3 bg-indigo-50 rounded-lg cursor-pointer">
+                                <input type="radio" name="eventType" value="In-Person" onchange="calculateCadence(); updateTyExtensionLock();" class="text-indigo-600 focus:ring-indigo-500">
+                                <span class="ml-2 text-sm font-medium text-indigo-800">In-Person Event (Business Days)</span>
+                            </label>
+                        </div>
+
+                        <div class="mt-6 space-y-3">
+                            <label class="inline-flex items-center">
+                                <input type="checkbox" id="isTLE" onchange="calculateCadence()" class="rounded text-green-600 focus:ring-green-500">
+                                <span class="ml-2 text-sm font-medium text-gray-700">TLE Event with Recording Enabled (T+6 Business Day Follow-up rule)</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="checkbox" id="isAITour" onchange="calculateCadence(); updateTyExtensionLock();" class="rounded text-green-600 focus:ring-green-500">
+                                <span class="ml-2 text-sm font-medium text-gray-700">AI Tour (In-Person Only) (Affects Waitlist End Dates)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Column 2: Region Selector (NEW) -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-3">Target Region (Applies Regional Rules)</label>
+                        <div class="space-y-3 p-3 bg-yellow-50 rounded-lg">
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="region" value="Default" checked onchange="calculateCadence()" class="text-yellow-600 focus:ring-yellow-500">
+                                <span class="ml-2 text-sm font-medium text-gray-800">Default (Standard Rules)</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="region" value="Canada" onchange="calculateCadence()" class="text-yellow-600 focus:ring-yellow-500">
+                                <span class="ml-2 text-sm font-medium text-gray-800">Canada (Tues/Wed Digital T-4h Rule)</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="region" value="Germany" onchange="calculateCadence()" class="text-yellow-600 focus:ring-yellow-500">
+                                <span class="ml-2 text-sm font-medium text-gray-800">Germany (T+3 Day Follow-up Rule)</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Card -->
+        <div class="card bg-white p-6 sm:p-8 rounded-xl">
+            <h2 class="text-2xl font-semibold mb-6 text-green-700">2. Calculated Workflow Dates</h2>
+            <div id="resultsTable">
+                <!-- Results will be injected here by JavaScript -->
+                <p class="text-center text-gray-500 mt-4">Fill out the event details above to see the cadence results.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Helper function to check if a date is a weekend (0=Sun, 6=Sat)
+        const isWeekend = (date) => {
+            const day = date.getDay();
+            return day === 0 || day === 6;
+        };
+
+        // Helper function to get the next date, adding the specified number of calendar days
+        const addCalendarDays = (startDate, days) => {
+            const date = new Date(startDate.getTime());
+            date.setDate(date.getDate() + days);
+            return date;
+        };
+        
+        // Helper function to calculate the date by adding/subtracting business days
+        const calculateBusinessDays = (startDate, days) => {
+            let date = new Date(startDate.getTime());
+            let remainingDays = Math.abs(days);
+            const direction = days > 0 ? 1 : -1;
+
+            while (remainingDays > 0) {
+                date.setDate(date.getDate() + direction);
+                if (!isWeekend(date)) {
+                    remainingDays--;
+                }
+            }
+            return date;
+        };
+        
+        // Helper to format date only (YYYY-MM-DD)
+        const formatDate = (date) => {
+            const d = new Date(date);
+            let month = '' + (d.getMonth() + 1);
+            let day = '' + d.getDate();
+            const year = d.getFullYear();
+
+            if (month.length < 2) month = '0' + month;
+            if (day.length < 2) day = '0' + day;
+
+            return [year, month, day].join('-');
+        };
+
+        // Helper to format time only (HH:MM AM/PM)
+        const formatTime = (date) => {
+            let hours = date.getHours();
+            let minutes = date.getMinutes();
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12; // the hour '0' should be '12'
+            minutes = minutes < 10 ? '0' + minutes : minutes;
+            return `${hours}:${minutes} ${ampm}`;
+        };
+
+        // Function to handle the special Email Expiration rule
+        const getExpirationTime = (scheduledDateTime) => {
+            const targetExpiration = new Date(scheduledDateTime.getTime());
+            targetExpiration.setHours(targetExpiration.getHours() + 1);
+
+            if (targetExpiration.getMinutes() === 30) {
+                // If the target is xx:30, it requires rounding up to the next full hour (e.g. 11:30 -> 12:00)
+                targetExpiration.setHours(targetExpiration.getHours() + 1);
+                targetExpiration.setMinutes(0);
+                return `${formatTime(targetExpiration)} <span class="text-red-500 font-semibold">(Rounded up)</span>`;
+            }
+            
+            // For all other times, standard +1 hour
+            return formatTime(targetExpiration);
+        };
+        
+        // --- NEW: Function to check and lock the TY Extension for AI Tour events ---
+        const updateTyExtensionLock = () => {
+            const eventType = document.querySelector('input[name="eventType"]:checked')?.value;
+            const isAITour = document.getElementById('isAITour').checked;
+            const container = document.getElementById('ty-extension-container');
+            const select = document.getElementById('customTyDaysOverride');
+            const isLocked = eventType === 'In-Person' && isAITour;
+
+            let overlay = document.getElementById('ty-extension-overlay');
+
+            if (isLocked) {
+                // Lock the input
+                if (!overlay) {
+                    overlay = document.createElement('div');
+                    overlay.id = 'ty-extension-overlay';
+                    overlay.className = 'disabled-overlay';
+                    overlay.innerHTML = 'Out of Scope for AI Tour Events.<br>Requires Program Owner Approval.';
+                    container.appendChild(overlay);
+                }
+                // Reset the select value if it was set
+                select.value = "";
+                calculateCadence(); // Recalculate based on default rule now
+            } else {
+                // Unlock the input
+                if (overlay) {
+                    overlay.remove();
+                }
+            }
+        };
+
+        const calculateCadence = () => {
+            // 1. Get Inputs
+            const startD = document.getElementById('startDate').value;
+            const startT = document.getElementById('startTime').value;
+            const endD = document.getElementById('endDate').value;
+            const endT = document.getElementById('endTime').value;
+            
+            // On-Demand Inputs
+            const onDemandStartD = document.getElementById('onDemandStartDate').value;
+            const onDemandStartT = document.getElementById('onDemandStartTime').value;
+            const onDemandEndD = document.getElementById('onDemandEndDate').value;
+            const onDemandEndT = document.getElementById('onDemandEndTime').value;
+
+            // TY Override Input
+            const customTyDaysOverride = document.getElementById('customTyDaysOverride').value;
+            
+            const type = document.querySelector('input[name="eventType"]:checked')?.value;
+            const region = document.querySelector('input[name="region"]:checked')?.value || 'Default';
+            const isTLE = document.getElementById('isTLE').checked;
+            const isAITour = document.getElementById('isAITour').checked;
+
+            if (!startD || !startT || !endD || !endT || !type) {
+                document.getElementById('resultsTable').innerHTML = '<p class="text-center text-yellow-600 mt-4 p-4 bg-yellow-50 rounded-lg">Please fill in all required event details (Date, Time, and Type) to see the full cadence.</p>';
+                return;
+            }
+
+            // Combine date and time inputs into full Date objects
+            const startDateTime = new Date(`${startD}T${startT}:00`);
+            const endDateTime = new Date(`${endD}T${endT}:00`);
+            const startDayOfWeek = startDateTime.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+
+            const isDigital = type === 'Digital';
+            // Default day calculator based on event type
+            const dayCalculator = isDigital ? addCalendarDays : calculateBusinessDays;
+            
+            const results = {};
+
+            // --- A. Registration Workflow Cadence (Reminders & Follow-up) ---
+
+            // 1st Reminder: T-3 days, Event Start Time
+            const firstReminderDate = dayCalculator(startDateTime, isDigital ? -3 : -3);
+            firstReminderDate.setHours(startDateTime.getHours(), startDateTime.getMinutes(), 0, 0);
+            results.reminder1 = {
+                date: formatDate(firstReminderDate),
+                time: formatTime(startDateTime),
+                expiration: getExpirationTime(startDateTime)
+            };
+
+            // 2nd Reminder: T-1 day, Event Start Time
+            const secondReminderDate = dayCalculator(startDateTime, isDigital ? -1 : -1);
+            secondReminderDate.setHours(startDateTime.getHours(), startDateTime.getMinutes(), 0, 0);
+            results.reminder2 = {
+                date: formatDate(secondReminderDate),
+                time: formatTime(startDateTime),
+                expiration: getExpirationTime(startDateTime)
+            };
+            
+            // Final Reminder (NEW): T-1 hour (default) or T-4 hours (Canada Tue/Wed Digital)
+            let finalReminderHours = 1;
+            let finalReminderLogic = 'T-1 Hour before Event Start Time (Standard)';
+
+            // Apply Canada Rule: Digital Event on Tuesday (2) or Wednesday (3)
+            if (region === 'Canada' && isDigital && (startDayOfWeek === 2 || startDayOfWeek === 3)) {
+                finalReminderHours = 4;
+                finalReminderLogic = 'T-4 Hours before Event Start Time (CANADA DIGITAL TUE/WED RULE)';
+            }
+            
+            const finalReminderDateTime = new Date(startDateTime.getTime());
+            finalReminderDateTime.setHours(finalReminderDateTime.getHours() - finalReminderHours);
+
+            results.reminderFinal = {
+                date: formatDate(finalReminderDateTime),
+                time: formatTime(finalReminderDateTime),
+                logic: finalReminderLogic,
+                expiration: getExpirationTime(finalReminderDateTime)
+            };
+
+
+            // Follow up Email (TY):
+            let followUpDate;
+            let followUpTime = formatTime(endDateTime);
+            let tyLogic;
+            let isCustomExtensionUsed = false;
+
+            // Check if AI Tour prevents custom extension
+            const isAITourBlocked = (type === 'In-Person' && isAITour);
+            
+            if (customTyDaysOverride && !isAITourBlocked) {
+                const customDays = parseInt(customTyDaysOverride);
+                // NEW RULE: If custom days are selected, ALWAYS use Business Days.
+                followUpDate = calculateBusinessDays(endDateTime, customDays);
+                followUpDate.setHours(endDateTime.getHours(), endDateTime.getMinutes(), 0, 0);
+                tyLogic = `Custom Extension: T+${customDays} Business Days (Overrides all regional/TLE rules)`;
+                isCustomExtensionUsed = true;
+            
+            } else if (region === 'Germany') {
+                 // GERMANY RULE: 72 hours (T+3 Calendar Days) after event end time
+                followUpDate = addCalendarDays(endDateTime, 3);
+                tyLogic = `T+3 Calendar Days after event end date (GERMANY RULE)`;
+                followUpDate.setHours(endDateTime.getHours(), endDateTime.getMinutes(), 0, 0);
+
+            } else if (isTLE) {
+                // TLE RULE: T+6 Business days
+                followUpDate = calculateBusinessDays(endDateTime, 6);
+                tyLogic = `T+6 Business Days after event end date (TLE Recording Rule)`;
+                followUpDate.setHours(endDateTime.getHours(), endDateTime.getMinutes(), 0, 0);
+
+            } else {
+                // Default Rule: T+1 day (Calendar for Digital, Business for In-Person)
+                followUpDate = dayCalculator(endDateTime, 1);
+                tyLogic = `T+1 ${isDigital ? 'Calendar' : 'Business'} Day after event end date`;
+                followUpDate.setHours(endDateTime.getHours(), endDateTime.getMinutes(), 0, 0);
+            }
+            
+            // --- TY GOVERNANCE VALIDATION ---
+            let tyGovernanceWarning = null;
+            
+            // The governance threshold is T+6 CALENDAR DAYS after the Event End Date.
+            const tPlus6CalendarThreshold = addCalendarDays(endDateTime, 6); 
+            
+            if (isAITourBlocked && customTyDaysOverride) {
+                 tyGovernanceWarning = `<span class="text-red-700 font-bold">OUT OF SCOPE for AI Tour. Needs Program Owner Approval.</span>`;
+            } else if (followUpDate.getTime() > tPlus6CalendarThreshold.getTime()) {
+                 tyGovernanceWarning = `<span class="text-red-700 font-bold">Requires Governance Approval (Beyond T+6 Calendar Days: ${formatDate(tPlus6CalendarThreshold)})</span>`;
+            } else if (isCustomExtensionUsed || region === 'Germany' || isTLE) {
+                // Only show Governance status for non-default calculations
+                tyGovernanceWarning = '<span class="text-green-600 font-bold">Standard or Within T+6 Calendar Days threshold.</span>';
+            }
+
+
+            results.followUp = {
+                date: formatDate(followUpDate),
+                time: followUpTime,
+                logic: tyLogic,
+                governance: tyGovernanceWarning 
+            };
+
+
+            // --- B. General Tab End Dates ---
+
+            // 1. Registration Workflow End Date: TY+7 Calendar Days
+            const regEndDateTime = addCalendarDays(followUpDate, 7);
+            results.regEnd = {
+                date: formatDate(regEndDateTime),
+                time: 'Event End Time',
+                logic: 'TY Email Date + 7 Calendar Days'
+            };
+
+            // 2. Registration Denied Workflow End Date: T+7 Calendar Days after Event End Date
+            const regDeniedEndDateTime = addCalendarDays(endDateTime, 7);
+            results.regDeniedEnd = {
+                date: formatDate(regDeniedEndDateTime),
+                time: 'N/A',
+                logic: 'Event End Date + 7 Calendar Days'
+            };
+
+            // 3. Waitlist Workflow End Date:
+            if (isAITour && !isDigital) { // Only applies to In-Person AI Tour
+                // AI Tour (In-Person): Event End Date, T-3 hours before event start time
+                const waitlistEndDT = new Date(endDateTime.getTime());
+                // Calculate time T-3 hours before START time on the END date
+                waitlistEndDT.setHours(startDateTime.getHours() - 3, startDateTime.getMinutes(), 0, 0);
+
+                results.waitlistEnd = {
+                    date: formatDate(waitlistEndDT),
+                    time: formatTime(waitlistEndDT),
+                    logic: 'Event End Date, T-3 hours before Event Start Time'
+                };
+            } else {
+                // Standard/Digital/In-Person Non-AI: T+7 after the event end date (Calendar days)
+                const waitlistEndDT = addCalendarDays(endDateTime, 7);
+                results.waitlistEnd = {
+                    date: formatDate(waitlistEndDT),
+                    time: 'N/A',
+                    logic: 'Event End Date + 7 Calendar Days'
+                };
+            }
+
+            // 4. Waitlist Denied Workflow Start/End Dates:
+            // Start Date is always T-1 Calendar days, Event Start Time
+            const wlDeniedStartDT = addCalendarDays(startDateTime, -1);
+            wlDeniedStartDT.setHours(startDateTime.getHours(), startDateTime.getMinutes(), 0, 0);
+
+            let wlDeniedEndDTText, wlDeniedEndTimeText, wlDeniedEndLogic;
+
+            if (isAITour && !isDigital) {
+                // AI Tour (In-Person): Stopped
+                wlDeniedEndDTText = '<span class="text-red-600 font-bold">STOPPED</span>';
+                wlDeniedEndTimeText = 'N/A';
+                wlDeniedEndLogic = 'AI Tour (In-Person) Events: Workflow is STOPPED.';
+            } else if (isDigital) {
+                // Digital: T+1 Calendar days, Event Start Time
+                const wlDeniedEndDT = addCalendarDays(startDateTime, 1);
+                wlDeniedEndDT.setHours(startDateTime.getHours(), startDateTime.getMinutes(), 0, 0);
+                wlDeniedEndDTText = formatDate(wlDeniedEndDT);
+                wlDeniedEndTimeText = formatTime(startDateTime);
+                wlDeniedEndLogic = 'T+1 Calendar Days, Event Start Time';
+            } else {
+                // In-Person: T-3 hours before event start date and time
+                const wlDeniedEndDT = new Date(startDateTime.getTime());
+                wlDeniedEndDT.setHours(startDateTime.getHours() - 3, startDateTime.getMinutes(), 0, 0);
+                wlDeniedEndDTText = formatDate(wlDeniedEndDT);
+                wlDeniedEndTimeText = formatTime(wlDeniedEndDT);
+                wlDeniedEndLogic = 'T-3 hours before Event Start Date and Time';
+            }
+
+            results.wlDeniedStart = {
+                date: formatDate(wlDeniedStartDT),
+                time: formatTime(startDateTime),
+                logic: 'T-1 Calendar Days, Event Start Time'
+            };
+            results.wlDeniedEnd = {
+                date: wlDeniedEndDTText,
+                time: wlDeniedEndTimeText,
+                logic: wlDeniedEndLogic
+            };
+            
+            // 5. Registration On-Demand Workflow End Date and Input Display
+            let onDemand180DayError = null;
+
+            // Logic for Input Start Display (Date and Time must be present for Time to show)
+            results.onDemandInputStart = {
+                date: onDemandStartD || 'N/A',
+                time: (onDemandStartD && onDemandStartT) ? formatTime(new Date(`2000-01-01T${onDemandStartT}:00`)) : 'N/A',
+                logic: 'Input Start Date/Time'
+            };
+
+            // Logic for Input End Display (Date and Time must be present for Time to show)
+            results.onDemandInputEnd = {
+                date: onDemandEndD || 'N/A',
+                time: (onDemandEndD && onDemandEndT) ? formatTime(new Date(`2000-01-01T${onDemandEndT}:00`)) : 'N/A',
+                logic: 'Input End Date/Time (Used for T+7 calculation)'
+            };
+
+            if (onDemandEndD && onDemandStartD) {
+                const onDemandStartDateTime = new Date(`${onDemandStartD}T${onDemandStartT || '00:00'}:00`);
+                const onDemandEndDateTime = new Date(`${onDemandEndD}T${onDemandEndT || '00:00'}:00`);
+                const eventEndDateTime = new Date(`${endD}T${endT}:00`);
+            
+                // Calculate On-Demand Duration in Days
+                const timeDiff = onDemandEndDateTime.getTime() - onDemandStartDateTime.getTime();
+                let durationDays = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+                if (durationDays < 0) {
+                     results.onDemandDuration = `<span class="text-red-600">ERROR: Start must precede End</span>`;
+                } else {
+                     results.onDemandDuration = `${durationDays} Days`;
+                }
+
+                // Calculate 180-Day Rule
+                const maxOnDemandDate = addCalendarDays(eventEndDateTime, 180);
+
+                if (onDemandEndDateTime > maxOnDemandDate) {
+                    onDemand180DayError = `<span class="text-red-700 font-extrabold">ERROR: Exceeds 180 days limit. Max Date: ${formatDate(maxOnDemandDate)}</span>`;
+                } else {
+                    onDemand180DayError = '<span class="text-green-600 font-extrabold">Valid</span>';
+                }
+
+                // T+7 Calculation
+                const regOnDemandEndDT = addCalendarDays(onDemandEndDateTime, 7);
+
+                results.regOnDemandEnd = {
+                    date: formatDate(regOnDemandEndDT),
+                    time: 'N/A',
+                    logic: 'On-Demand Content End Date + 7 Calendar Days'
+                };
+                
+            } else {
+                // If dates are missing
+                results.regOnDemandEnd = {
+                    date: 'N/A',
+                    time: 'N/A',
+                    logic: 'Required: "On-Demand Content End Date"'
+                };
+                results.onDemandDuration = 'N/A';
+                onDemand180DayError = 'N/A (Dates missing)';
+            }
+            
+            results.onDemandValidation = onDemand180DayError;
+
+
+            // 6. Render Results
+            renderResults(results, isDigital, isTLE, isAITour, region);
+        };
+
+        const renderResults = (results, isDigital, isTLE, isAITour, region) => {
+            const dayBasis = isDigital ? 'Calendar Day' : 'Business Day';
+            let html = '';
+            const regionHighlight = region === 'Canada' ? 'bg-yellow-100' : (region === 'Germany' ? 'bg-orange-100' : '');
+
+
+            // --- Registration Workflow Cadence Table ---
+            html += `
+                <h3 class="text-xl font-semibold mt-4 mb-4 text-indigo-700">Registration Workflow Cadence (Reminders & Follow-up)</h3>
+                <p class="text-sm text-gray-500 mb-4 ${regionHighlight} p-3 rounded-lg">
+                    Calculation Basis: <span class="font-bold text-indigo-800">${dayBasis}</span> | 
+                    Region Applied: <span class="font-bold text-red-600">${region}</span>
+                </p>
+                <div class="overflow-x-auto mb-8">
+                    <table class="min-w-full bg-white border border-gray-200 rounded-lg shadow-sm">
+                        <thead class="bg-indigo-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Email</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Cadence Logic</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Required Date</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Required Time</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Email Expiration</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            <tr>
+                                <td class="px-4 py-4 whitespace-nowrap font-medium text-gray-900">1st Reminder</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">T-3 ${dayBasis}s</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-green-700 font-bold">${results.reminder1.date}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">${results.reminder1.time}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">${results.reminder1.expiration}</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-4 whitespace-nowrap font-medium text-gray-900">2nd Reminder</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">T-1 ${dayBasis}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-green-700 font-bold">${results.reminder2.date}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">${results.reminder2.time}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">${results.reminder2.expiration}</td>
+                            </tr>
+                            <tr class="${region === 'Canada' ? 'bg-yellow-50' : ''}">
+                                <td class="px-4 py-4 whitespace-nowrap font-medium text-gray-900">Final Reminder (T-1h / T-4h)</td>
+                                <td class="px-4 py-4 whitespace-pre-wrap text-sm text-gray-600">${results.reminderFinal.logic}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-green-700 font-bold">${results.reminderFinal.date}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">${results.reminderFinal.time}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">${results.reminderFinal.expiration}</td>
+                            </tr>
+                            <tr class="${results.followUp.governance ? 'border-b-0' : ''} ${results.followUp.logic.includes('Custom Extension') ? 'bg-red-100' : (region === 'Germany' ? 'bg-orange-200' : (isTLE ? 'bg-green-50' : ''))}">
+                                <td class="px-4 py-4 whitespace-nowrap font-medium text-gray-900">Follow-up (TY/No Show)</td>
+                                <td class="px-4 py-4 whitespace-pre-wrap text-sm text-gray-600">${results.followUp.logic}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-green-700 font-bold">${results.followUp.date}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">${results.followUp.time}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">N/A</td>
+                            </tr>
+                            <!-- NEW: Follow-up Governance Check -->
+                            ${results.followUp.governance ? `
+                            <tr class="${results.followUp.governance.includes('Requires') || results.followUp.governance.includes('OUT OF SCOPE') ? 'bg-red-200' : 'bg-green-100'} border-t-0 border-b border-gray-300">
+                                <td class="px-4 py-2 whitespace-nowrap font-medium text-gray-900" colspan="2">Extension Governance Check</td>
+                                <td class="px-4 py-2 whitespace-pre-wrap text-sm font-bold" colspan="3">${results.followUp.governance}</td>
+                            </tr>` : ''}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            // --- General Tab End Dates Table (Now strictly General Workflows) ---
+            html += `
+                <h3 class="text-xl font-semibold mt-8 mb-4 text-green-700">General Tab End Dates (Core Workflows)</h3>
+                <div class="overflow-x-auto mb-8">
+                    <table class="min-w-full bg-white border border-gray-200 rounded-lg shadow-sm">
+                        <thead class="bg-green-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Workflow / Event</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Date Logic</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Required Date</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Required Time</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            <tr class="${region === 'Germany' ? 'bg-orange-50' : ''}">
+                                <td class="px-4 py-4 whitespace-nowrap font-medium text-gray-900">Registration</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">${results.regEnd.logic}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-green-700 font-bold">${results.regEnd.date}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">7-day period is generally on the End Date.</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-4 whitespace-nowrap font-medium text-gray-900">Registration Denied</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">${results.regDeniedEnd.logic}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-green-700 font-bold">${results.regDeniedEnd.date}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">N/A (Uses Event End Date time)</td>
+                            </tr>
+                            <tr>
+                                <td class="px-4 py-4 whitespace-nowrap font-medium text-gray-900">Waitlist</td>
+                                <td class="px-4 py-4 whitespace-pre-wrap text-sm text-gray-600">${results.waitlistEnd.logic}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-green-700 font-bold">${results.waitlistEnd.date}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">${results.waitlistEnd.time}</td>
+                            </tr>
+                            
+                            <tr class="${(isAITour && !isDigital) ? 'bg-red-50' : ''}">
+                                <td class="px-4 py-4 whitespace-nowrap font-medium text-gray-900">Waitlist Denied - Start</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">${results.wlDeniedStart.logic}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-green-700 font-bold">${results.wlDeniedStart.date}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">${results.wlDeniedStart.time}</td>
+                            </tr>
+                            <tr class="${(isAITour && !isDigital) ? 'bg-red-100' : ''}">
+                                <td class="px-4 py-4 whitespace-nowrap font-medium text-gray-900">Waitlist Denied - End</td>
+                                <td class="px-4 py-4 whitespace-pre-wrap text-sm text-gray-600">${results.wlDeniedEnd.logic}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm ${results.wlDeniedEnd.date.includes('STOPPED') ? 'text-red-600' : 'text-green-700'} font-bold">${results.wlDeniedEnd.date}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">${results.wlDeniedEnd.time}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            // --- On-Demand Content Details (New, Separate Block) ---
+            html += `
+                <h3 class="text-xl font-semibold mt-8 mb-4 text-blue-700">On-Demand Content Details & Workflow</h3>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-200 rounded-lg shadow-sm">
+                        <thead class="bg-blue-50">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Detail</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Date / Value</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Time / Status</th>
+                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Logic / Rule</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            <!-- Input Start -->
+                            <tr>
+                                <td class="px-4 py-4 whitespace-nowrap font-medium text-blue-800">Content Start</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-blue-700 font-bold">${results.onDemandInputStart.date}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">${results.onDemandInputStart.time}</td>
+                                <td class="px-4 py-4 whitespace-pre-wrap text-sm text-gray-600">User Input</td>
+                            </tr>
+                            <!-- Input End -->
+                            <tr>
+                                <td class="px-4 py-4 whitespace-nowrap font-medium text-blue-800">Content End</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-blue-700 font-bold">${results.onDemandInputEnd.date}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">${results.onDemandInputEnd.time}</td>
+                                <td class="px-4 py-4 whitespace-pre-wrap text-sm text-gray-600">User Input (Used for T+7)</td>
+                            </tr>
+                            <!-- Duration -->
+                            <tr class="bg-blue-100/50">
+                                <td class="px-4 py-4 whitespace-nowrap font-medium text-blue-900">Content Duration</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-blue-700 font-extrabold" colspan="3">${results.onDemandDuration}</td>
+                            </tr>
+                            <!-- 180 Day Validation -->
+                            <tr class="${results.onDemandValidation.includes('ERROR') ? 'bg-red-200' : 'bg-green-100'}">
+                                <td class="px-4 py-4 whitespace-nowrap font-medium text-gray-900">Max Timeframe Check (180 Days)</td>
+                                <td class="px-4 py-4 whitespace-nowrap font-medium text-gray-900" colspan="3">${results.onDemandValidation}</td>
+                            </tr>
+                            <!-- Registration On-Demand Workflow End Date -->
+                            <tr class="bg-blue-200 font-semibold border-t-2 border-blue-600">
+                                <td class="px-4 py-4 whitespace-nowrap font-medium text-blue-900">Registration On-Demand (Workflow End Date)</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm ${results.regOnDemandEnd.date === 'N/A' ? 'text-gray-500' : 'text-blue-700 font-extrabold'}">${results.regOnDemandEnd.date}</td>
+                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">${results.regOnDemandEnd.time}</td>
+                                <td class="px-4 py-4 whitespace-pre-wrap text-sm text-gray-600">${results.regOnDemandEnd.logic}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            document.getElementById('resultsTable').innerHTML = html;
+        };
+
+        // Initialize with today's date and a sample time for a good first experience
+        window.onload = () => {
+            const today = formatDate(new Date());
+            document.getElementById('startDate').value = today;
+            document.getElementById('endDate').value = today;
+            document.getElementById('startTime').value = '10:30';
+            document.getElementById('endTime').value = '16:00';
+            
+            // Clear conditional dates/times for initial view (no default value)
+            document.getElementById('onDemandStartDate').value = '';
+            document.getElementById('onDemandEndDate').value = '';
+            document.getElementById('onDemandStartTime').value = '';
+            document.getElementById('onDemandEndTime').value = '';
+            document.getElementById('customTyDaysOverride').value = ''; 
+
+            // Initial lock check
+            updateTyExtensionLock();
+            calculateCadence();
+        };
+
+    </script>
+</body>
+</html>
