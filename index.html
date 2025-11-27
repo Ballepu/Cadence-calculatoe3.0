@@ -154,7 +154,7 @@
                         </div>
                     </div>
 
-                    <!-- Column 2: Region Selector (NEW) -->
+                    <!-- Column 2: Region Selector -->
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-3">Target Region (Applies Regional Rules)</label>
                         <div class="space-y-3 p-3 bg-yellow-50 rounded-lg">
@@ -162,10 +162,7 @@
                                 <input type="radio" name="region" value="Default" checked onchange="calculateCadence()" class="text-yellow-600 focus:ring-yellow-500">
                                 <span class="ml-2 text-sm font-medium text-gray-800">Default (Standard Rules)</span>
                             </label>
-                            <label class="inline-flex items-center">
-                                <input type="radio" name="region" value="Canada" onchange="calculateCadence()" class="text-yellow-600 focus:ring-yellow-500">
-                                <span class="ml-2 text-sm font-medium text-gray-800">Canada (Tues/Wed Digital T-4h Rule)</span>
-                            </label>
+                            <!-- Removed Canada Rule -->
                             <label class="inline-flex items-center">
                                 <input type="radio" name="region" value="Germany" onchange="calculateCadence()" class="text-yellow-600 focus:ring-yellow-500">
                                 <span class="ml-2 text-sm font-medium text-gray-800">Germany (T+3 Day Follow-up Rule)</span>
@@ -342,25 +339,7 @@
                 expiration: getExpirationTime(startDateTime)
             };
             
-            // Final Reminder (NEW): T-1 hour (default) or T-4 hours (Canada Tue/Wed Digital)
-            let finalReminderHours = 1;
-            let finalReminderLogic = 'T-1 Hour before Event Start Time (Standard)';
-
-            // Apply Canada Rule: Digital Event on Tuesday (2) or Wednesday (3)
-            if (region === 'Canada' && isDigital && (startDayOfWeek === 2 || startDayOfWeek === 3)) {
-                finalReminderHours = 4;
-                finalReminderLogic = 'T-4 Hours before Event Start Time (CANADA DIGITAL TUE/WED RULE)';
-            }
-            
-            const finalReminderDateTime = new Date(startDateTime.getTime());
-            finalReminderDateTime.setHours(finalReminderDateTime.getHours() - finalReminderHours);
-
-            results.reminderFinal = {
-                date: formatDate(finalReminderDateTime),
-                time: formatTime(finalReminderDateTime),
-                logic: finalReminderLogic,
-                expiration: getExpirationTime(finalReminderDateTime)
-            };
+            // Final Reminder: REMOVED as requested. Standard cadence is now 1st, 2nd, Follow-up.
 
 
             // Follow up Email (TY):
@@ -573,7 +552,7 @@
         const renderResults = (results, isDigital, isTLE, isAITour, region) => {
             const dayBasis = isDigital ? 'Calendar Day' : 'Business Day';
             let html = '';
-            const regionHighlight = region === 'Canada' ? 'bg-yellow-100' : (region === 'Germany' ? 'bg-orange-100' : '');
+            const regionHighlight = region === 'Germany' ? 'bg-orange-100' : '';
 
 
             // --- Registration Workflow Cadence Table ---
@@ -609,13 +588,7 @@
                                 <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">${results.reminder2.time}</td>
                                 <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">${results.reminder2.expiration}</td>
                             </tr>
-                            <tr class="${region === 'Canada' ? 'bg-yellow-50' : ''}">
-                                <td class="px-4 py-4 whitespace-nowrap font-medium text-gray-900">Final Reminder (T-1h / T-4h)</td>
-                                <td class="px-4 py-4 whitespace-pre-wrap text-sm text-gray-600">${results.reminderFinal.logic}</td>
-                                <td class="px-4 py-4 whitespace-nowrap text-sm text-green-700 font-bold">${results.reminderFinal.date}</td>
-                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">${results.reminderFinal.time}</td>
-                                <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">${results.reminderFinal.expiration}</td>
-                            </tr>
+                            <!-- Final Reminder Row Removed -->
                             <tr class="${results.followUp.governance ? 'border-b-0' : ''} ${results.followUp.logic.includes('Custom Extension') ? 'bg-red-100' : (region === 'Germany' ? 'bg-orange-200' : (isTLE ? 'bg-green-50' : ''))}">
                                 <td class="px-4 py-4 whitespace-nowrap font-medium text-gray-900">Follow-up (TY/No Show)</td>
                                 <td class="px-4 py-4 whitespace-pre-wrap text-sm text-gray-600">${results.followUp.logic}</td>
