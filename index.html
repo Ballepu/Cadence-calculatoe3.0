@@ -51,6 +51,22 @@
         <div class="card bg-white p-6 sm:p-8 rounded-xl mb-10">
             <h2 class="text-2xl font-semibold mb-6 text-indigo-700">1. Event Details Input</h2>
 
+            <!-- MOVED: EVENT TYPE SELECTOR (FIRST OPTION) -->
+            <div class="mb-8 p-4 bg-indigo-50 rounded-xl border border-indigo-200">
+                <label class="block text-sm font-medium text-gray-700 mb-3">Event Type (Determines Day Basis)</label>
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <label class="inline-flex items-center p-3 bg-white rounded-lg cursor-pointer shadow-sm">
+                        <input type="radio" name="eventType" value="Digital" checked onchange="calculateCadence(); updateTyExtensionLock();" class="text-indigo-600 focus:ring-indigo-500">
+                        <span class="ml-2 text-sm font-medium text-indigo-800">Digital Event (Calendar Days)</span>
+                    </label>
+                    <label class="inline-flex items-center p-3 bg-white rounded-lg cursor-pointer shadow-sm">
+                        <input type="radio" name="eventType" value="In-Person" onchange="calculateCadence(); updateTyExtensionLock();" class="text-indigo-600 focus:ring-indigo-500">
+                        <span class="ml-2 text-sm font-medium text-indigo-800">In-Person Event (Business Days)</span>
+                    </label>
+                </div>
+            </div>
+            <!-- END MOVED: EVENT TYPE SELECTOR -->
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <!-- Event Start Date -->
                 <div>
@@ -125,24 +141,13 @@
                 </div>
             </div>
 
-            <!-- Event Type, Region, and Checkboxes -->
+            <!-- MODIFIERS AND REGION SELECTOR (Now below date/time inputs) -->
             <div class="mt-8">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Column 1: Event Type and Checkboxes -->
+                    <!-- Column 1: TLE/AI Tour Checkboxes -->
                     <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-3">Event Type (Determines Day Basis)</label>
-                        <div class="flex flex-col sm:flex-row gap-4">
-                            <label class="inline-flex items-center p-3 bg-indigo-50 rounded-lg cursor-pointer">
-                                <input type="radio" name="eventType" value="Digital" checked onchange="calculateCadence(); updateTyExtensionLock();" class="text-indigo-600 focus:ring-indigo-500">
-                                <span class="ml-2 text-sm font-medium text-indigo-800">Digital Event (Calendar Days)</span>
-                            </label>
-                            <label class="inline-flex items-center p-3 bg-indigo-50 rounded-lg cursor-pointer">
-                                <input type="radio" name="eventType" value="In-Person" onchange="calculateCadence(); updateTyExtensionLock();" class="text-indigo-600 focus:ring-indigo-500">
-                                <span class="ml-2 text-sm font-medium text-indigo-800">In-Person Event (Business Days)</span>
-                            </label>
-                        </div>
-
-                        <div class="mt-6 space-y-3">
+                        <label class="block text-sm font-medium text-gray-700 mb-3">Event Modifiers</label>
+                        <div class="space-y-3 p-3 bg-green-50 rounded-lg">
                             <label class="inline-flex items-center">
                                 <input type="checkbox" id="isTLE" onchange="calculateCadence()" class="rounded text-green-600 focus:ring-green-500">
                                 <span class="ml-2 text-sm font-medium text-gray-700">TLE Event with Recording Enabled (T+6 Business Day Follow-up rule)</span>
@@ -160,14 +165,20 @@
                         <div class="space-y-3 p-3 bg-yellow-50 rounded-lg">
                             <label class="inline-flex items-center">
                                 <input type="radio" name="region" value="Default" checked onchange="calculateCadence()" class="text-yellow-600 focus:ring-yellow-500">
-                                <span class="ml-2 text-sm font-medium text-gray-800">Default (Standard Rules)</span>
+                                <span class="ml-2 text-sm font-medium text-gray-800">Default (Sun/Sat Weekend)</span>
                             </label>
-                            <!-- Removed Canada Rule -->
+                            <!-- MEA REGION -->
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="region" value="MEA" onchange="calculateCadence()" class="text-yellow-600 focus:ring-yellow-500">
+                                <span class="ml-2 text-sm font-medium text-gray-800">MEA (Fri/Sat Weekend, Commercial/Local Scale Audience)</span>
+                            </label>
                             <label class="inline-flex items-center">
                                 <input type="radio" name="region" value="Germany" onchange="calculateCadence()" class="text-yellow-600 focus:ring-yellow-500">
                                 <span class="ml-2 text-sm font-medium text-gray-800">Germany (T+3 Day Follow-up Rule)</span>
                             </label>
                         </div>
+                        <p class="text-xs text-gray-500 mt-2">MEA includes: Algeria, Bahrain, Egypt, Jordan, Kuwait, Oman, Qatar, Saudi Arabia.</p>
+                        <p class="text-xs text-red-600 mt-2 font-semibold">NOTE: MEA weekend rule (Fri/Sat) is applicable for both Digital and In-Person events ONLY if the audience is Commercial and Local Scale.</p>
                     </div>
                 </div>
             </div>
@@ -184,10 +195,16 @@
     </div>
 
     <script>
-        // Helper function to check if a date is a weekend (0=Sun, 6=Sat)
-        const isWeekend = (date) => {
+        // Helper function to check if a date is a standard weekend (Sun=0, Sat=6)
+        const isStandardWeekend = (date) => {
             const day = date.getDay();
             return day === 0 || day === 6;
+        };
+
+        // Helper function to check if a date is an MEA weekend (Fri=5, Sat=6)
+        const isMEAWeekend = (date) => {
+            const day = date.getDay();
+            return day === 5 || day === 6;
         };
 
         // Helper function to get the next date, adding the specified number of calendar days
@@ -197,15 +214,18 @@
             return date;
         };
         
-        // Helper function to calculate the date by adding/subtracting business days
-        const calculateBusinessDays = (startDate, days) => {
+        // Helper function to calculate the date by adding/subtracting business days based on region
+        const calculateBusinessDays = (startDate, days, region = 'Default') => {
             let date = new Date(startDate.getTime());
             let remainingDays = Math.abs(days);
             const direction = days > 0 ? 1 : -1;
+            
+            // Determine the weekend checker based on region
+            const isWeekendChecker = (region === 'MEA') ? isMEAWeekend : isStandardWeekend;
 
             while (remainingDays > 0) {
                 date.setDate(date.getDate() + direction);
-                if (!isWeekend(date)) {
+                if (!isWeekendChecker(date)) {
                     remainingDays--;
                 }
             }
@@ -314,8 +334,9 @@
             const startDayOfWeek = startDateTime.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
 
             const isDigital = type === 'Digital';
-            // Default day calculator based on event type
-            const dayCalculator = isDigital ? addCalendarDays : calculateBusinessDays;
+            
+            // Wrapper function to determine day calculation method, including regional business days
+            const dayCalculator = (d, days) => isDigital ? addCalendarDays(d, days) : calculateBusinessDays(d, days, region);
             
             const results = {};
 
@@ -339,9 +360,6 @@
                 expiration: getExpirationTime(startDateTime)
             };
             
-            // Final Reminder: REMOVED as requested. Standard cadence is now 1st, 2nd, Follow-up.
-
-
             // Follow up Email (TY):
             let followUpDate;
             let followUpTime = formatTime(endDateTime);
@@ -353,8 +371,8 @@
             
             if (customTyDaysOverride && !isAITourBlocked) {
                 const customDays = parseInt(customTyDaysOverride);
-                // NEW RULE: If custom days are selected, ALWAYS use Business Days.
-                followUpDate = calculateBusinessDays(endDateTime, customDays);
+                // NEW RULE: If custom days are selected, ALWAYS use Business Days (MEA/Default logic applies via calculateBusinessDays).
+                followUpDate = calculateBusinessDays(endDateTime, customDays, region);
                 followUpDate.setHours(endDateTime.getHours(), endDateTime.getMinutes(), 0, 0);
                 tyLogic = `Custom Extension: T+${customDays} Business Days (Overrides all regional/TLE rules)`;
                 isCustomExtensionUsed = true;
@@ -366,13 +384,13 @@
                 followUpDate.setHours(endDateTime.getHours(), endDateTime.getMinutes(), 0, 0);
 
             } else if (isTLE) {
-                // TLE RULE: T+6 Business days
-                followUpDate = calculateBusinessDays(endDateTime, 6);
+                // TLE RULE: T+6 Business days (MEA/Default logic applies via calculateBusinessDays).
+                followUpDate = calculateBusinessDays(endDateTime, 6, region);
                 tyLogic = `T+6 Business Days after event end date (TLE Recording Rule)`;
                 followUpDate.setHours(endDateTime.getHours(), endDateTime.getMinutes(), 0, 0);
 
             } else {
-                // Default Rule: T+1 day (Calendar for Digital, Business for In-Person)
+                // Default Rule: T+1 day (Calendar for Digital, Regional Business for In-Person)
                 followUpDate = dayCalculator(endDateTime, 1);
                 tyLogic = `T+1 ${isDigital ? 'Calendar' : 'Business'} Day after event end date`;
                 followUpDate.setHours(endDateTime.getHours(), endDateTime.getMinutes(), 0, 0);
@@ -550,9 +568,9 @@
         };
 
         const renderResults = (results, isDigital, isTLE, isAITour, region) => {
-            const dayBasis = isDigital ? 'Calendar Day' : 'Business Day';
+            const dayBasis = isDigital ? 'Calendar Day' : (region === 'MEA' ? 'Business Day (Fri/Sat)' : 'Business Day (Sun/Sat)');
             let html = '';
-            const regionHighlight = region === 'Germany' ? 'bg-orange-100' : '';
+            const regionHighlight = region === 'Germany' ? 'bg-orange-100' : (region === 'MEA' ? 'bg-blue-100' : '');
 
 
             // --- Registration Workflow Cadence Table ---
@@ -561,6 +579,7 @@
                 <p class="text-sm text-gray-500 mb-4 ${regionHighlight} p-3 rounded-lg">
                     Calculation Basis: <span class="font-bold text-indigo-800">${dayBasis}</span> | 
                     Region Applied: <span class="font-bold text-red-600">${region}</span>
+                    ${region === 'MEA' ? '<br><span class="text-red-700 font-bold">WARNING: MEA rule applies to Commercial & Local Scale audience only.</span>' : ''}
                 </p>
                 <div class="overflow-x-auto mb-8">
                     <table class="min-w-full bg-white border border-gray-200 rounded-lg shadow-sm">
@@ -588,8 +607,7 @@
                                 <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">${results.reminder2.time}</td>
                                 <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">${results.reminder2.expiration}</td>
                             </tr>
-                            <!-- Final Reminder Row Removed -->
-                            <tr class="${results.followUp.governance ? 'border-b-0' : ''} ${results.followUp.logic.includes('Custom Extension') ? 'bg-red-100' : (region === 'Germany' ? 'bg-orange-200' : (isTLE ? 'bg-green-50' : ''))}">
+                            <tr class="${results.followUp.governance ? 'border-b-0' : ''} ${results.followUp.logic.includes('Custom Extension') ? 'bg-red-100' : (region === 'Germany' ? 'bg-orange-200' : (isTLE ? 'bg-green-50' : (region === 'MEA' ? 'bg-blue-200' : '')))}">
                                 <td class="px-4 py-4 whitespace-nowrap font-medium text-gray-900">Follow-up (TY/No Show)</td>
                                 <td class="px-4 py-4 whitespace-pre-wrap text-sm text-gray-600">${results.followUp.logic}</td>
                                 <td class="px-4 py-4 whitespace-nowrap text-sm text-green-700 font-bold">${results.followUp.date}</td>
@@ -621,7 +639,7 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
-                            <tr class="${region === 'Germany' ? 'bg-orange-50' : ''}">
+                            <tr class="${region === 'Germany' ? 'bg-orange-50' : (region === 'MEA' ? 'bg-blue-50' : '')}">
                                 <td class="px-4 py-4 whitespace-nowrap font-medium text-gray-900">Registration</td>
                                 <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">${results.regEnd.logic}</td>
                                 <td class="px-4 py-4 whitespace-nowrap text-sm text-green-700 font-bold">${results.regEnd.date}</td>
